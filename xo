@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XO Online Game</title>
+    <style>
+        table { border-collapse: collapse; margin-top: 10px; }
+        td { width: 60px; height: 60px; border: 1px solid #333; text-align: center; font-size: 30px; cursor: pointer; }
+        #status { font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🎮 XO Online - إلعب مع صاحبك</h2>
+    <p>Room ID: <input type="text" id="roomId" placeholder="اكتب رقم الغرفة">
+    <button onclick="joinRoom()">ابدأ</button></p>
+    <table id="board"></table>
+    <p id="status">يرجى إدخال Room ID للبدء</p>
+    <button onclick="resetGame()">إعادة اللعب</button>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-DnsuiWSqLf_kyiVx_jXeozxyGI4IUeo",
+            authDomain: "xo-game-bebd6.firebaseapp.com",
+            databaseURL: "https://xo-game-bebd6-default-rtdb.firebaseio.com",
+            projectId: "xo-game-bebd6",
+            storageBucket: "xo-game-bebd6.firebasestorage.app",
+            messagingSenderId: "726780062191",
+            appId: "1:726780062191:web:80b4808d3dfd91fb012e1a",
+            measurementId: "G-H3FFBHPXKN"
+        };
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let room = "";
+        let currentPlayer = "X";
+        let gameOver = false;
+
+        function joinRoom() {
+            room = document.getElementById('roomId').value;
+            createBoard();
+            listenForMoves();
+        }
+
+        function createBoard() {
+            const table = document.getElementById('board');
+            table.innerHTML = "";
+            for (let i = 0; i < 3; i++) {
+                const row = table.insertRow();
+                for (let j = 0; j < 3; j++) {
+                    const cell = row.insertCell();
+                    cell.onclick = () => makeMove(i, j);
+                }
+            }
+        }
+
+        function makeMove(row, col) {
+            if (!gameOver) {
+                db.ref(room + "/board/" + row + "_" + col).once('value').then(snapshot => {
+                    if (!snapshot.val()) {
+                        db.ref(room + "/board/" + row + "_" + col).set(currentPlayer);
+                        currentPlayer = (currentPlayer === "X") ? "O" : "X";
+                        db.ref(room + "/currentPlayer").set(currentPlayer);
+                    }
+                });
+            }
+        }
+
+        function listenForMoves() {
+            db.ref(room + "/board").on('value', snapshot => {
+                const board = snapshot.val();
+                if (!board) return;
+                for (let key in board) {
+                    const [row, col] = key.split('_');
+                    const cell = document.getElementById('board').rows[row].cells[col];
+                    cell.innerHTML = board[key];
+                }
+            });
+            db.ref(room + "/currentPlayer").on('value', snapshot => {
+                const player = snapshot.val();
+                if (player) {
+                    document.getElementById('status').innerText = "الدور الحالي: " + player;
+                }
+            });
+        }
+
+        function resetGame() {
+            db.ref(room + "/board").remove();
+            db.ref(room + "/currentPlayer").set("X");
+            createBoard();
+        }
+    </script>
+</body>
+</html>
